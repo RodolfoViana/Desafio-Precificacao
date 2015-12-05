@@ -1,0 +1,177 @@
+---
+title: "Análise Descritiva Sales"
+author: "Rodolfo Viana"
+date: "04-12-2015"
+output: html_document
+---
+
+```{r}
+library(dplyr)
+library(ggplot2)
+```
+
+Carregando os dados
+
+```{r}
+sales <- read.csv("~/Projetos/Desafio-Precificacao/Scripts/Dados/sales.csv")
+```
+
+É possível notar que o produto P7 foi o mais comprado. Com 55% das vendas.
+
+```{r}
+# Mostra lita de produtos vendidos 
+venda_produto <- as.data.frame(table(sales$PROD_ID))
+
+ggplot(venda_produto, aes(x=reorder(Var1, -Freq), y=Freq, fill = Freq)) + 
+  geom_bar(stat="identity") + 
+  labs(y='Compras', x='Produtos') +
+   theme(axis.text.x = element_text(angle = 45, hjust = 1), panel.background=element_blank())
+
+venda_produto$percentual <- (venda_produto$Freq / sum(venda_produto$Freq))*100
+
+ggplot(venda_produto, aes(x=reorder(Var1, -percentual), y=percentual)) + 
+  geom_bar(stat="identity") + 
+  labs(y='Compras', x='Produtos') +
+  scale_y_continuous(limits=c(0, 60)) +
+   theme(axis.text.x = element_text(angle = 45, hjust = 1), panel.background=element_blank())
+```
+
+Entre os dias 1 dia 287 do ano. 
+
+```{r}
+summary(sales)
+
+data_venda_produto <- as.data.frame(table(sales$DATE_ORDER))
+
+sales$date <- as.Date(as.character(sales$DATE_ORDER), format = "%Y-%m-%d")
+sales$ano <- as.numeric(format(sales$date, format = '%Y'))
+sales$mes <- as.numeric(format(sales$date, format = '%m'))
+sales$dia <- as.numeric(format(sales$date, format = '%j'))
+sales$semana <- as.numeric(format(sales$date, format = '%W'))
+sales$dia_da_semana <- format(sales$date, format = '%a')
+sales$dia_da_semana_num <- format(sales$date, format = '%u')
+
+mes_venda_produto <- as.data.frame(table(sales$mes))
+
+ggplot(mes_venda_produto, aes(x=reorder(Var1, -Var1), y=Freq)) + 
+  geom_bar(stat="identity") + 
+  labs(y='Compras', x='Produtos') +
+  theme_classic() + 
+  theme(panel.background=element_blank())
+
+semana_venda_produto <- as.data.frame(table(sales$semana))
+
+ggplot(semana_venda_produto, aes(x=reorder(Var1, -Var1), y=Freq)) + 
+  geom_bar(stat="identity") + 
+  labs(y='Compras', x='Produtos') +
+  theme_classic() + 
+  theme(panel.background=element_blank())
+
+dia_semana_venda_produto <- as.data.frame(table(sales$dia_da_semana))
+
+ggplot(dia_semana_venda_produto, aes(x=reorder(Var1, -Freq), y=Freq)) + 
+  geom_bar(stat="identity") + 
+  labs(y='Compras', x='Produtos') +
+  theme_classic() + 
+  theme(panel.background=element_blank()) 
+
+dia_venda_produto <- as.data.frame(table(sales$dia))
+mean_compras_dia <- mean(dia_venda_produto$Freq)
+
+ggplot(dia_venda_produto, aes(x=reorder(Var1, -Var1), y=Freq)) + 
+  geom_bar(stat="identity") + 
+  labs(y='Compras', x='Produtos') +
+  theme_classic() + 
+  theme(panel.background=element_blank()) +
+  geom_abline(intercept=mean_compras_dia,slope= 0,colour="blue")
+
+top_dias_compras <- head(dia_venda_produto[order(dia_venda_produto$Freq, decreasing=TRUE),], n=5)
+
+# 231 e 232 dia 19 e 20 de Agosto
+# 147 dia 27 de Maio
+# 244 e 245 dia 1 e 2 de Setembro
+```
+
+Produto por dia / produto 
+
+```{r}
+x <- filter(sales, unique(dia, mes))
+mes_venda_produto <- as.data.frame(table(sales$mes))
+
+ggplot(mes_venda_produto, aes(x=reorder(Var1, -Var1), y=Freq)) + 
+  geom_bar(stat="identity") + 
+  labs(y='Compras', x='Produtos') +
+  theme_classic() + 
+  theme(panel.background=element_blank())
+
+semana_venda_produto <- as.data.frame(table(sales$semana))
+
+ggplot(semana_venda_produto, aes(x=reorder(Var1, -Var1), y=Freq)) + 
+  geom_bar(stat="identity") + 
+  labs(y='Compras', x='Produtos') +
+  theme_classic() + 
+  theme(panel.background=element_blank())
+
+dia_semana_venda_produto <- as.data.frame(table(sales$dia_da_semana))
+
+ggplot(dia_semana_venda_produto, aes(x=reorder(Var1, -Freq), y=Freq)) + 
+  geom_bar(stat="identity") + 
+  labs(y='Compras', x='Produtos') +
+  theme_classic() + 
+  theme(panel.background=element_blank()) 
+
+dia_venda_produto <- as.data.frame(table(sales$dia))
+mean_compras_dia <- mean(dia_venda_produto$Freq)
+
+ggplot(dia_venda_produto, aes(x=reorder(Var1, -Var1), y=Freq)) + 
+  geom_bar(stat="identity") + 
+  labs(y='Compras', x='Produtos') +
+  theme_classic() + 
+  theme(panel.background=element_blank()) +
+  geom_abline(intercept=mean_compras_dia,slope= 0,colour="blue")
+
+top_dias_compras <- head(dia_venda_produto[order(dia_venda_produto$Freq, decreasing=TRUE),], n=5)
+
+# 231 e 232 dia 19 e 20 de Agosto
+# 147 dia 27 de Maio
+# 244 e 245 dia 1 e 2 de Setembro
+```
+
+
+Em 95% das compras, apenas 1 produto foi comprado. Problema da cauda longa. 
+
+```{r}
+qty_venda_produto <- as.data.frame(table(sales$QTY_ORDER))
+
+qty_venda_produto$porcentagem <- (qty_venda_produto$Freq / sum(qty_venda_produto$Freq))*100
+
+ggplot(qty_venda_produto, aes(x=reorder(Var1, -porcentagem), y=porcentagem)) + 
+  geom_bar(stat="identity") + 
+  labs(y='Compras', x='Produtos') +
+  theme_classic() + 
+  theme(panel.background=element_blank())
+
+qty_venda_produto <- filter(qty_venda_produto, porcentagem < 90)
+
+ggplot(qty_venda_produto, aes(x=reorder(Var1, -porcentagem), y=porcentagem)) + 
+  geom_bar(stat="identity") + 
+  labs(y='Compras', x='Produtos') +
+  theme_classic() + 
+  theme(panel.background=element_blank())
+```
+
+```{r}
+sales$cond <- "Cond"
+
+ggplot(sales, aes(cond, PRICE)) + geom_boxplot( stat = "boxplot")  + 
+  theme(panel.background=element_blank(),  
+        legend.title=element_blank(), axis.text.x=element_blank(), axis.title.y=element_blank(), axis.line=element_blank(), 
+        axis.title.x=element_blank(), axis.ticks=element_blank())
+
+
+ggplot(sales, aes(cond, PRICE)) + geom_boxplot( stat = "boxplot")  + 
+  theme(panel.background=element_blank(),  
+        legend.title=element_blank(), axis.text.x=element_blank(), axis.title.y=element_blank(), axis.line=element_blank(), 
+        axis.title.x=element_blank(), axis.ticks=element_blank()) + 
+    scale_y_continuous(breaks = round(seq(150, 1000, by = 50),), limits = c(0, 1000))
+```

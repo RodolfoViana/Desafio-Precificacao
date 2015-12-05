@@ -1,0 +1,73 @@
+---
+title: "Análise Descritiva Comp-Prices"
+author: "Rodolfo Viana"
+date: "05-12-2015"
+output: html_document
+---
+
+
+```{r}
+library(dplyr)
+library(ggplot2)
+
+source("R/precificacao-lib.R")
+```
+
+Carregando os dados
+
+```{r}
+comp_prices <- read.csv("~/Projetos/Desafio-Precificacao/Scripts/Dados/comp_prices.csv")
+
+summary(comp_prices)
+```
+
+Tipo de pagamento
+
+```{r}
+str(comp_prices)
+
+tipo_compra <- as.data.frame(table(comp_prices$PAY_TYPE))
+
+ggplot(tipo_compra, aes(x=reorder(Var1, -Var1), y=Freq)) + 
+  geom_bar(stat="identity") + 
+  labs(y='', x='Tipo de Pagamento') +
+  theme_classic() + 
+  theme(panel.background=element_blank()) 
+
+```
+
+Preços máximos e minimos. Alguns com mais outlier (exemplo, tal e tal e tal) outros com menos. 
+
+```{r}
+comp_prices$PROD_ID <- as.character(comp_prices$PROD_ID)
+
+ggplot(comp_prices, aes(factor(PROD_ID), COMPETITOR_PRICE)) + geom_boxplot(stat = "boxplot")
+
+ggplot(comp_prices, aes(factor(PROD_ID), COMPETITOR_PRICE)) + geom_boxplot( stat = "boxplot")  + 
+  theme(panel.background=element_blank(),  
+        legend.title=element_blank(), axis.title.y=element_blank(), axis.line=element_blank(), axis.ticks=element_blank()) + 
+    scale_y_continuous(breaks = round(seq(200, 3000, by = 300),), limits = c(0, 3000))
+```
+
+```{r}
+toPlot_preco_competidor(comp_prices, "P1")
+toPlot_preco_competidor(comp_prices, "P2")
+toPlot_preco_competidor(comp_prices, "P3")
+toPlot_preco_competidor(comp_prices, "P4")
+toPlot_preco_competidor(comp_prices, "P5")
+toPlot_preco_competidor(comp_prices, "P6") 
+```
+
+```{r}
+toPlot_preco_competidor(comp_prices)
+
+ggplot(data=toPlot_preco_competidor(comp_prices), 
+       aes(x=reorder(Var1, Var1), y=Freq, fill=Preco)) + 
+  geom_bar(stat="identity") + 
+  scale_fill_manual(values = c("Melhor" = "blue", "Pior" = "red")) +
+  labs(y='', x='Competidor', title = "Número de vezes que um competidor foi melhor/pior") + 
+  theme_classic() + 
+  theme(axis.ticks = element_blank())
+
+str(comp_prices)
+```
