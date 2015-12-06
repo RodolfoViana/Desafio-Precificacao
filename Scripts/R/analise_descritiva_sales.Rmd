@@ -5,29 +5,39 @@ date: "04-12-2015"
 output: html_document
 ---
 
-```{r}
+O problema a seguir trata do desafio de precificação, onde se buscar meios para otimizar a relação demanda e preço. Os dados utilizados são uma pequena amostra de um comércio eletrônico, onde temos basicamente dois arquivos “sales.csv” e “comp_prices.csv com 351.091 e 50.114 linhas, respectivamente.
+
+O arquivo sales.csv contém informações transacionais, onde cada linha representa uma venda. Possui as colunas:
+
+PROD_ID: ID de produto. Com os dados para nove produtos, P1 a P9
+DATE_ORDER: Data da venda, no formato YYYY-MM-DD
+QTY_ORDER: Quantidade vendida
+PRICE: Preço da venda
+
+
+```{r, warning=FALSE, message=FALSE}
+# Carregando as bibliotecas necessárias
 library(dplyr)
 library(ggplot2)
 
 source("R/precificacao-lib.R")
-```
 
-Carregando os dados
-
-```{r}
+# Carregando os dados
 sales <- read.csv("~/Projetos/Desafio-Precificacao/Scripts/Dados/sales.csv")
 ```
 
 É possível notar que o produto P7 foi o mais comprado. Com 55% das vendas.
 
-```{r}
+```{r, fig.align='center'}
 # Mostra lita de produtos vendidos 
 venda_produto <- as.data.frame(table(sales$PROD_ID))
 
-ggplot(venda_produto, aes(x=reorder(Var1, -Freq), y=Freq, fill = Freq)) + 
+ggplot(venda_produto, aes(x = reorder(Var1, -Freq), y=Freq, fill = Freq)) + 
   geom_bar(stat="identity") + 
-  labs(y='Compras', x='Produtos') +
-   theme(axis.text.x = element_text(angle = 45, hjust = 1), panel.background=element_blank())
+  labs(y='', x='Produtos', title = "Produtos mais vendidos") +
+  scale_fill_continuous(name="Compras") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), panel.background=element_blank())
 
 venda_produto$percentual <- (venda_produto$Freq / sum(venda_produto$Freq))*100
 

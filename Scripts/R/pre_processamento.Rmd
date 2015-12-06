@@ -36,7 +36,7 @@ sales_by_semana <- right_join(sales_by_semana, sales_by_dia, by = c("PROD_ID", "
 
 # Adiciona a quantidade de vendas do produto do dia anterior
 new_sales <- qty_dia_anterior(sales_by_dia)
-new_sales_1 <- cbind(sales_by_semana, new_sales$qty_anterior)
+new_sales <- cbind(sales_by_semana, qty_anterior = new_sales$qty_anterior)
 
 ```
 
@@ -58,13 +58,16 @@ comp_prices <- comp_prices %>%
 comp_prices$DATE_EXTRACTION <- NULL
 comp_prices$PAY_TYPE <- NULL
 comp_prices$date <- NULL
+new_sales$data <- NULL
+new_sales$semana <- NULL
+sales_by_dia$semana <- NULL
 ```
 
 Antes de criar o modelo é importante dividir o arquivo original em treino e teste (75% treinamento, 25% teste), para assim verificar o F-measure e saber se um modelo criado é melhor do que o modelo anterior.
 
 
 ```{r}
-prod_qty <- right_join(sales, comp_prices, by = c("PROD_ID", "dia"))
+prod_qty <- right_join(sales_by_dia, comp_prices, by = c("PROD_ID", "dia"))
 
 # Ordena o Df de forma aleatória 
 set.seed(12345)
@@ -76,4 +79,18 @@ test <- prod_qty[round(0.75*nrow(prod_qty)):nrow(prod_qty), ]
 
 write.csv(treino, "Dados/prod_qty_treino.csv", row.names = FALSE)
 write.csv(test, "Dados/prod_qty_test.csv", row.names = FALSE)
+```
+
+```{r}
+prod_qty_new <- right_join(new_sales, comp_prices, by = c("PROD_ID", "dia"))
+
+set.seed(12345)
+prod_qty_new <- prod_qty_new[order(runif(nrow(prod_qty_new))), ]
+
+# Divisao de treino e teste
+treino <- prod_qty_new[1:round(0.75*nrow(prod_qty_new)), ]
+test <- prod_qty_new[round(0.75*nrow(prod_qty_new)):nrow(prod_qty_new), ]
+
+write.csv(treino, "Dados/prod_qty_treino_novas_variaveis.csv", row.names = FALSE)
+write.csv(test, "Dados/prod_qty_test_novas_variaveis.csv", row.names = FALSE)
 ```

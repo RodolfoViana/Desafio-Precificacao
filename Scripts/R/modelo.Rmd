@@ -5,15 +5,16 @@ date: "05-12-2015"
 output: html_document
 ---
 
-Carregando a biblioteca H2o
+Carregando as bibliotecas necessárias 
 
 ```{r}
 library(h2o)
+require(caret)
 library(ggplot2)
 conn <- h2o.init(nthreads = -1)
 ```
 
-Inicalmente vamos dividir o dataset entre o data set de treino e validação. Essa divisão é importante por evita o overfitting
+Inicalmente vamos dividir o dataset entre o data set de treino e validação. Essa divisão é importante por evita o overfitting prod_qty_treino_novas_variaveis
 
 ```{r}
 # Importando arquivo no h2o
@@ -104,7 +105,6 @@ Como o Random Florest foi o escolhido, é interessante observar como se deu o tr
 
 
 ```{r}
-
 # DRF
 drf <- h2o.randomForest(x = myX,
                       y = myY,
@@ -144,28 +144,221 @@ ggplot(data=df, aes(x=modelo, y=r2, fill=tipo)) +
 
 Notamos que a variável PROD_ID, dia e semana foram as variáveis com maior importância para a criação do modelo. Por esse motivo é interessante investigar essas variáveis para melhorar o modelo. 
 
-Uma boa alternativa é criar uma váriavel que mostre a quantidade de compras que o item teve no dia anterior. Outra boa alternativa é criar uma váriavel que mostre a média de compras do item na última semana. 
+Uma boa alternativa é criar uma váriavel que mostre a quantidade de compras que o item teve no dia anterior. Outra boa alternativa é criar uma váriavel que mostre a média de preço e a quantidade de compras do item na última semana. 
 
+Foi feito então um novo pré processamento, onde foi adicionado as três novas colunas *qty_semana*, *media_preco_semana*, *qty_anterior*. 
+
+```{r}
+# Importando arquivo no h2o
+path_input <- "/home/rodolfo/Projetos/Desafio-Precificacao/Scripts/Dados/prod_qty_treino_novas_variaveis.csv"
+data <- h2o.importFile(path = path_input, destination_frame = "train.hex")
+
+
+# Divide o data frame em dois. treino 80 / validação  20 
+data.split <- h2o.splitFrame(data = data , ratios = 0.80)
+
+# Treino 
+data.train <- data.split[[1]] 
+
+# Validação
+data.validacao <- data.split[[2]]
+```
+
+Um novo modelo será criado, seguindo os mesmo passos anteriores: 
+1) Rodar RF com 50 árvores e 30 de profundidade (Esse número deveria ser bem mais alto, porém por motivos de processamento esse valors foram escolhidos)
+2) Encontrar o ponto onde o modelo fica super especialista (overfitthing)
+3) Rodar RF com o número de árvores otimizado
+
+```{r}
+myY <- "qty"
+ignored_columns <- "preco"
+myX <- setdiff(setdiff(names(data.train), myY), ignored_columns)
+
+# DRF
+drf <- h2o.randomForest(x = myX,
+                      y = myY,
+                      training_frame    = data.train,
+                      validation_frame  = data.validacao,
+                      ntrees            = 50,
+                      max_depth         = 30)
+```
+
+Para esse novo modelo com 50 árvores e 30 de profundidade não foi possível notar o ponto onde o modelo fica super especialista. Por esse motivo foi criado um novo modelo, dessa vez utilizando 100 árvores e 30 de profundidade. 
+
+
+```{r}
+myY <- "qty"
+ignored_columns <- "preco"
+myX <- setdiff(setdiff(names(data.train), myY), ignored_columns)
+
+# DRF
+drf <- h2o.randomForest(x = myX,
+                      y = myY,
+                      training_frame    = data.train,
+                      validation_frame  = data.validacao,
+                      ntrees            = 100,
+                      max_depth         = 30)
+```
+
+```{r}
+# Evolução do treinamento
+
+```
+
+É possível notar que depois da árvore 60, tanto o treinamento quando a validação praticamente se estabilizam. Por esse motivo, o número de árvores ideal para esse conjunto de dados é 60. 
+
+```{r}
+myY <- "qty"
+ignored_columns <- "preco"
+myX <- setdiff(setdiff(names(data.train), myY), ignored_columns)
+
+# DRF
+drf <- h2o.randomForest(x = myX,
+                      y = myY,
+                      training_frame    = data.train,
+                      validation_frame  = data.validacao,
+                      ntrees            = 60,
+                      max_depth         = 30)
+
+novas_variaveis_train_r2_drf <- h2o.r2(drf)
+novas_variaveis_test_r2_drf  <- h2o.r2(drf, valid = TRUE)
+```
+
+Podemos agora compara e existiu algum ganho entre o melhor modelo com as novas variáveis 
+
+```{r}
+df <- data.frame(r2 = c(novo_train_r2_drf, novo_test_r2_drf, novas_variaveis_train_r2_drf, novas_variaveis_test_r2_drf),
+                         tipo = c("treino", "validacao", "treino", "validacao"), 
+                         modelo = c("Antigo", "Antigo", "Novo", "Novo"))
+
+ggplot(data=df, aes(x=modelo, y=r2, fill=tipo)) +
+  geom_bar(stat="identity", position=position_dodge()) +
+  theme_classic() + 
+  theme(axis.ticks = element_blank())
+```
+
+É possível notar que o valor do R2 subiu em relação ao modelo anterior. Devemos agora investigar quais foram as variáveis que mais contribuiram essa mudança.
+
+```{r}
+# Variable importance
+
+```
+
+É possível notar que as três novas variáveis adicionadas se encontram no Top 5 das variáveis que mais contribuiram para a criação do modelo. Podemos afimar então, que as novas variáveis influênciaram possitivamente o modelo.
+
+
+Vamos agora repetir os passos para criar um novo modelo, para prever o preço de um certo produto por dia. 
+
+```{r}
+myY <- "preco"
+ignored_columns <- "qty"
+myX <- setdiff(setdiff(names(data.train), myY), ignored_columns)
+
+# DRF
+drf_preco <- h2o.randomForest(x = myX,
+                      y = myY,
+                      training_frame    = data.train,
+                      validation_frame  = data.validacao,
+                      ntrees            = 50,
+                      max_depth         = 30)
+
+preco_train_r2_drf <- h2o.r2(drf)
+preco_test_r2_drf  <- h2o.r2(drf, valid = TRUE)
+```
+
+É possível notar que o após 17 árvores o modelo se torna super especialista. Por esse motivo foi criado um novo modelo com apenas 17 árvores. 
 
 
 
 ```{r}
+# Plot da evolução
 
-## Find and import data test into H2O
-path_test <- "/home/viana/test_dates.csv"
-data_train <- h2o.importFile(path = path_input, destination_frame = "train.hex")
-
-
-print("Exporting")
-
-gbm.fit = h2o.predict(object = gbm, newdata = data_train)
-h2o.exportFile(gbm.fit, path = "/home/viana/gbm500-6")
-
-drf.fit = h2o.predict(object = drf, newdata = data_train)
-h2o.exportFile(drf.fit, path = "/home/viana/drf250-30")
-
-glm.fit = h2o.predict(object = glm, newdata = data_train)
-h2o.exportFile(glm.fit, path = "/home/viana/glm1e5")
-
-print("Done")
 ```
+
+Novo modelo
+
+```{r}
+myY <- "preco"
+ignored_columns <- "qty"
+myX <- setdiff(setdiff(names(data.train), myY), ignored_columns)
+
+# DRF
+drf_preco <- h2o.randomForest(x = myX,
+                      y = myY,
+                      training_frame    = data.train,
+                      validation_frame  = data.validacao,
+                      ntrees            = 17,
+                      max_depth         = 30)
+```
+
+Agora o modelo não sofre mais overfthing
+
+```{r}
+# Plot da evolução
+
+```
+
+É importante observar quais foram as variáveis quem mais contribuiram para a criação do modelo. 
+
+```{r}
+# Plot da evolução
+
+```
+
+
+Com isso temos dois modelos finais: 
+1) Criado para prever a quantidade diária que será vendida de cada produto
+2) Criado para prever o preço diário de cada produto
+
+Podemos agora utilizar os dados de teste (que foi sepado antes do modelo e que é totalmente disjunto dos dados de treino) para prever qual seria o resultado em um mundo real. 
+
+```{r}
+# Importanto arquivo de teste no H2O
+path_test <- "/home/rodolfo/Projetos/Desafio-Precificacao/Scripts/Dados/prod_qty_test_novas_variaveis.csv"
+data_train <- h2o.importFile(path = path_test, destination_frame = "test.hex")
+
+drf.qty = h2o.predict(object = drf, newdata = data_train)
+h2o.exportFile(drf.qty, path = "/home/rodolfo/Projetos/Desafio-Precificacao/Scripts/Dados/predicao_qty.csv")
+
+drf.preco = h2o.predict(object = drf_preco, newdata = data_train)
+h2o.exportFile(drf.preco, path = "/home/rodolfo/Projetos/Desafio-Precificacao/Scripts/Dados/predicao_preco.csv")
+```
+
+Podemos agora simular qual seria o real valor R2 no mundo real 
+
+```{r}
+prod_qty_test_novas_variaveis <- read.csv("~/Projetos/Desafio-Precificacao/Scripts/Dados/prod_qty_test_novas_variaveis.csv")
+
+predicao_qty <- read.table("~/Projetos/Desafio-Precificacao/Scripts/Dados/predicao_qty.csv", header=TRUE, quote="\"")
+
+avaliacao_qty <- data.frame(obs = prod_qty_test_novas_variaveis$qty, pred = predicao_qty$predict)
+
+defaultSummary(avaliacao_qty)[[2]]
+
+```
+
+```{r}
+predicao_preco <- read.table("~/Projetos/Desafio-Precificacao/Scripts/Dados/predicao_preco.csv", header=TRUE, quote="\"")
+
+avaliacao_preco <- data.frame(obs = prod_qty_test_novas_variaveis$preco, pred = predicao_preco$predict)
+
+defaultSummary(avaliacao_preco)[[2]]
+```
+
+É possível notar que o R2 ficou acima de 0.97 para os dois casos. Esse valor em um mundo real pode é considerado bastante alto. Cheguei nesse valor tão alto por se tratar de um conjunto de dados no qual não condiz o de um mundo real (ter apenas 9 produtos, 6 concorrentes, etc) todos esses fatores influenciaram para se ter um modelo com uma precisão tão alta. 
+
+Mesmo com um valor alto, ainda é possível melhorar sem causar overfitting. Se eu tivesse mais tempo iria criar um novo modelo retirando alguns outlier, pois acredito que eles influênciam negativamente o modelo. Além disso, iria investigar e criar novas variáveis para melhorar o modelo. Algumas variáveis que acredito ter pontencial para melhorar o modelo seria:
+
+1) Vendabilidade - Proporção que o produto foi comprado em realação aos outros produtos 
+
+Acredito que seja importante para o modelo saber quais são os produtos com maior potencial de compras
+
+2) Top_meses - Proporção de vendas de um mês em relação aos outros meses.
+
+Acredito que seja importante para o modelo saber quais são os meses que mais possuem compras (Ex: Dia das mãe, pais, etc)
+
+3) Dia_Mes - Mostra se o dia se encontra no começo, meio e fim do mês 
+
+Acredito que algumas pessoas preferem comprar no começo do mês (quando recebem o salário) outras devem preferir comprar no fim do mês
+
+Também acho importante utilizar outra biblioteca além do h2o, como por exemplo o caret que eu já usei aqui http://rpubs.com/Rodolfo_Viana/99497
