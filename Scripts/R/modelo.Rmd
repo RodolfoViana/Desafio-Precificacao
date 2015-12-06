@@ -1,0 +1,171 @@
+---
+title: "modelo"
+author: "Rodolfo Viana"
+date: "05-12-2015"
+output: html_document
+---
+
+Carregando a biblioteca H2o
+
+```{r}
+library(h2o)
+library(ggplot2)
+conn <- h2o.init(nthreads = -1)
+```
+
+Inicalmente vamos dividir o dataset entre o data set de treino e validação. Essa divisão é importante por evita o overfitting
+
+```{r}
+# Importando arquivo no h2o
+path_input <- "/home/rodolfo/Projetos/Desafio-Precificacao/Scripts/Dados/prod_qty_treino.csv"
+data <- h2o.importFile(path = path_input, destination_frame = "train.hex")
+
+
+# Divide o data frame em dois. treino 80 / validação  20 
+data.split <- h2o.splitFrame(data = data , ratios = 0.80)
+
+# Treino 
+data.train <- data.split[[1]] 
+
+# Validação
+data.validacao <- data.split[[2]]
+```
+
+
+A minha estrategia é primeiro achar o melhor modelo que encontre a quatidade diária que será vendida para cada produto, para só depois encontrar o melhor modelo que encontre o preço diário desse produto.
+Vamos inicialmente trabalhar com os modelos GBM, Árvore Aleatória e GLM. O ideal seria inicialmente rodar todos os modelos com um grande número de árvores, grande profundidade e uma taxa de aprendizado pequena por interação. Porém isso leva um tempo especialmente grande rodando na minha máquina atual (apenas 4GB)
+
+```{r}
+myY <- "qty"
+ignored_columns <- "preco"
+myX <- setdiff(setdiff(names(data.train), myY), ignored_columns)
+
+# GBM
+gbm <- h2o.gbm(x = myX, build_tree_one_node = T, 
+             y = myY,
+             training_frame    = data.train,
+             validation_frame  = data.validacao,
+             ntrees            = 50,
+             max_depth         = 6,
+             learn_rate        = 0.1)
+
+# DRF
+drf <- h2o.randomForest(x = myX,
+                      y = myY,
+                      training_frame    = data.train,
+                      validation_frame  = data.validacao,
+                      ntrees            = 50,
+                      max_depth         = 30)
+
+# GLM
+glm <- h2o.glm(x = myX,
+             y = myY,
+             training_frame    = data.train,
+             validation_frame  = data.validacao,
+             lambda            = 1e-5,
+             family            = "poisson")
+
+
+
+# Score de cada modelo
+train_r2_gbm <- h2o.r2(gbm)
+test_r2_gbm  <- h2o.r2(gbm, valid = TRUE)
+print(paste0("GBM R2 TRAIN = ", train_r2_gbm, ", R2 TEST = ", test_r2_gbm))
+
+train_r2_drf <- h2o.r2(drf)
+test_r2_drf  <- h2o.r2(drf, valid = TRUE)
+print(paste0("DRF R2 TRAIN = ", train_r2_drf, ", R2 TEST = ", test_r2_drf))
+
+train_r2_glm <- h2o.r2(glm)
+test_r2_glm  <- h2o.r2(glm, valid = TRUE)
+print(paste0("GLM R2 TRAIN = ", train_r2_glm, ", R2 TEST = ", test_r2_glm))
+
+df <- data.frame(r2 = c(train_r2_gbm, test_r2_gbm, train_r2_drf, test_r2_drf, train_r2_glm, test_r2_glm),
+                         tipo = c("treino", "validacao", "treino", "validacao", "treino", "validacao"), 
+                         modelo = c("GBM","GBM","RF", "RF","GLM", "GLM"))
+
+ggplot(data=df, aes(x=modelo, y=r2, fill=tipo)) +
+  geom_bar(stat="identity", position=position_dodge()) +
+  theme_classic() + 
+  theme(axis.ticks = element_blank())
+
+```
+
+Como o Random florest teve um melhor resultado do que os outros modelos, obtendo assim um R2 maior, então optamos por escolher o Random Florest para o caso da predição da quantidade de vendas de produtos.
+
+Como o Random Florest foi o escolhido, é interessante observar como se deu o treinamento ao longo das criações das árvores. Para evitar o overfitting dividimos os dados de teste em treino e validação. Dessa forma podemos observar o exato momento em que o modelo passa a sofrer o overfitting. 
+
+
+```{r}
+
+```
+
+É possível notar que depois da árvore 17, o modelo passa a sofrer overfitting. Por esse motivo criamos um novo modelo, porém dessa vez parando o treinamento na árvore 17. A linha azul significa o treino e a linha laranja significa validação. 
+
+
+```{r}
+
+# DRF
+drf <- h2o.randomForest(x = myX,
+                      y = myY,
+                      training_frame    = data.train,
+                      validation_frame  = data.validacao,
+                      ntrees            = 17,
+                      max_depth         = 30)
+
+
+novo_train_r2_drf <- h2o.r2(drf)
+novo_test_r2_drf  <- h2o.r2(drf, valid = TRUE)
+print(paste0("DRF R2 TRAIN = ", train_r2_drf, ", R2 TEST = ", test_r2_drf))
+
+df <- data.frame(r2 = c(train_r2_drf, test_r2_drf, novo_train_r2_drf, novo_test_r2_drf),
+                         tipo = c("treino", "validacao", "treino", "validacao"), 
+                         modelo = c("Antigo", "Antigo", "Novo", "Novo"))
+
+ggplot(data=df, aes(x=modelo, y=r2, fill=tipo)) +
+  geom_bar(stat="identity", position=position_dodge()) +
+  theme_classic() + 
+  theme(axis.ticks = element_blank())
+```
+
+É possível notar que o valor de R2 do treino sofreu uma ligeira queda, porém o valor do R2 sofreu um aumento. Dessa forma a gente evita o overfitting
+
+```{r}
+#Novo gráfico da evolução
+
+```
+
+É interessante notar também a importância das variáveis para a criação dos modelos. 
+
+```{r}
+
+
+```
+
+Notamos que a variável PROD_ID, dia e semana foram as variáveis com maior importância para a criação do modelo. Por esse motivo é interessante investigar essas variáveis para melhorar o modelo. 
+
+Uma boa alternativa é criar uma váriavel que mostre a quantidade de compras que o item teve no dia anterior. Outra boa alternativa é criar uma váriavel que mostre a média de compras do item na última semana. 
+
+
+
+
+```{r}
+
+## Find and import data test into H2O
+path_test <- "/home/viana/test_dates.csv"
+data_train <- h2o.importFile(path = path_input, destination_frame = "train.hex")
+
+
+print("Exporting")
+
+gbm.fit = h2o.predict(object = gbm, newdata = data_train)
+h2o.exportFile(gbm.fit, path = "/home/viana/gbm500-6")
+
+drf.fit = h2o.predict(object = drf, newdata = data_train)
+h2o.exportFile(drf.fit, path = "/home/viana/drf250-30")
+
+glm.fit = h2o.predict(object = glm, newdata = data_train)
+h2o.exportFile(glm.fit, path = "/home/viana/glm1e5")
+
+print("Done")
+```

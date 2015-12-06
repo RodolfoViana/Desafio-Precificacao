@@ -5,16 +5,75 @@ date: "05-12-2015"
 output: html_document
 ---
 
+Pré-Processamento dos Dados
+
+```{r}
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+
+source("R/precificacao-lib.R")
+```
+
+Pre-Processamento do csv sales
+
+```{r}
+sales <- read.csv("~/Projetos/Desafio-Precificacao/Scripts/Dados/sales.csv")
+sales <- col_timestamp(sales)
+
+# Por causa dos outliers resolvi escolher a mediana em vez da media 
+sales_by_dia <- group_by(sales, PROD_ID, dia) %>%
+  summarise(qty = n(), preco = median(PRICE))
+
+sales_by_dia$date <- as.Date(as.character(sales_by_dia$dia), format = "%j")
+sales_by_dia$semana <- as.numeric(format(sales_by_dia$date, format = '%W'))
+  
+# Média de compras por semana 
+sales_by_semana <- group_by(sales, PROD_ID, semana) %>%
+  summarise(qty_semana = n(), media_preco_semana = mean(PRICE))
+
+sales_by_semana <- right_join(sales_by_semana, sales_by_dia, by = c("PROD_ID", "semana"))
+
+# Adiciona a quantidade de vendas do produto do dia anterior
+new_sales <- qty_dia_anterior(sales_by_dia)
+new_sales_1 <- cbind(sales_by_semana, new_sales$qty_anterior)
+
+```
+
+Pre-Processamento do csv comp_prices
+
+```{r}
+comp_prices <- read.csv("~/Projetos/Desafio-Precificacao/Scripts/Dados/comp_prices.csv")
+
+# Considerando apenas horas
+comp_prices <- col_timestamp_comp(comp_prices)
+
+# Remove linhas duplicadas 
+comp_prices <- comp_prices[!duplicated(comp_prices), ]
+
+comp_prices <- comp_prices %>% 
+  spread(COMPETITOR, COMPETITOR_PRICE)
+
+# Removendo colunas dispensáveis 
+comp_prices$DATE_EXTRACTION <- NULL
+comp_prices$PAY_TYPE <- NULL
+comp_prices$date <- NULL
+```
+
+Antes de criar o modelo é importante dividir o arquivo original em treino e teste (75% treinamento, 25% teste), para assim verificar o F-measure e saber se um modelo criado é melhor do que o modelo anterior.
 
 
 ```{r}
-summary(cars)
+prod_qty <- right_join(sales, comp_prices, by = c("PROD_ID", "dia"))
+
+# Ordena o Df de forma aleatória 
+set.seed(12345)
+prod_qty <- prod_qty[order(runif(nrow(prod_qty))), ]
+
+# Divisao de treino e teste
+treino <- prod_qty[1:round(0.75*nrow(prod_qty)), ]
+test <- prod_qty[round(0.75*nrow(prod_qty)):nrow(prod_qty), ]
+
+write.csv(treino, "Dados/prod_qty_treino.csv", row.names = FALSE)
+write.csv(test, "Dados/prod_qty_test.csv", row.names = FALSE)
 ```
-
-You can also embed plots, for example:
-
-```{r, echo=FALSE}
-plot(cars)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

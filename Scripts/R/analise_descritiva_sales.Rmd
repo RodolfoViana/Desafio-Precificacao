@@ -8,6 +8,8 @@ output: html_document
 ```{r}
 library(dplyr)
 library(ggplot2)
+
+source("R/precificacao-lib.R")
 ```
 
 Carregando os dados
@@ -43,13 +45,7 @@ summary(sales)
 
 data_venda_produto <- as.data.frame(table(sales$DATE_ORDER))
 
-sales$date <- as.Date(as.character(sales$DATE_ORDER), format = "%Y-%m-%d")
-sales$ano <- as.numeric(format(sales$date, format = '%Y'))
-sales$mes <- as.numeric(format(sales$date, format = '%m'))
-sales$dia <- as.numeric(format(sales$date, format = '%j'))
-sales$semana <- as.numeric(format(sales$date, format = '%W'))
-sales$dia_da_semana <- format(sales$date, format = '%a')
-sales$dia_da_semana_num <- format(sales$date, format = '%u')
+sales <- col_timestamp(sales)
 
 mes_venda_produto <- as.data.frame(table(sales$mes))
 

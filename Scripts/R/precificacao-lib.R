@@ -44,3 +44,47 @@ toPlot_preco_competidor <- function(comp_prices){
              data.frame(as.data.frame(table(df_pior_preco$COMPETITOR)), 
                         Preco = as.factor("Pior")))
 }
+
+# Função que retonra o data frame com timestamp por colunas 
+col_timestamp <- function(sales){
+  sales$date <- as.Date(as.character(sales$DATE_ORDER), format = "%Y-%m-%d")
+  sales$ano <- as.numeric(format(sales$date, format = '%Y'))
+  sales$mes <- as.numeric(format(sales$date, format = '%m'))
+  sales$dia <- as.numeric(format(sales$date, format = '%j'))
+  sales$semana <- as.numeric(format(sales$date, format = '%W'))
+  sales$dia_da_semana <- format(sales$date, format = '%a')
+  sales$dia_da_semana_num <- format(sales$date, format = '%u')
+  sales
+} 
+
+# Função que retonra o data frame com timestamp por colunas 
+col_timestamp_comp <- function(comp_prices){
+  comp_prices$date <- as.POSIXct(as.character(comp_prices$DATE_EXTRACTION), format = "%Y-%m-%d %H:%M:%S")
+  comp_prices$dia <- as.numeric(format(comp_prices$date, format = '%j'))
+  comp_prices$hora <- as.numeric(format(comp_prices$date, format = '%H'))  
+  comp_prices$mes <- as.numeric(format(comp_prices$date, format = '%m'))
+  comp_prices$semana <- as.numeric(format(comp_prices$date, format = '%W'))
+  comp_prices$dia_da_semana_num <- as.numeric(format(comp_prices$date, format = '%u'))
+  comp_prices
+} 
+
+
+# Função que cria um data frame com todos os dias e produtos possíveis
+complet_df <- function(sales){
+  df <- data.frame()
+  for (i in min(sales$dia):max(sales$dia)){
+      df <- rbind(df, c("P1", i))
+  }
+}
+
+# Função que cria uma coluna da quantidade de vendas do dia anterior
+qty_dia_anterior <- function(sales){
+  aux <- sales["qty"]
+  aux <- rbind(0, aux)
+  aux <- data.frame(aux[-nrow(aux), ]) 
+  
+  colnames(aux) <- "qty_anterior"
+  sales <- cbind(sales, aux)
+}
+
+
