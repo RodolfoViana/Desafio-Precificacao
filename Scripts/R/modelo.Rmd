@@ -11,6 +11,7 @@ Para a criação do modelo utilizei a biblioteca h2o, por se tratar de um open-s
 # Carregando as bibliotecas necessárias
 library(dplyr)
 library(ggplot2)
+library(h2o)
  
 source("~/Projetos/Desafio-Precificacao/Scripts/R/precificacao-lib.R")
 conn <- h2o.init(nthreads = -1)
