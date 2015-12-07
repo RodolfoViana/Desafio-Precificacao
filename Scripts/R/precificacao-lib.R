@@ -3,9 +3,9 @@
 # Plot dos menores preços de cada competidor por produto
 toPlot_preco_competidor <- function(comp_prices, prod_id){
   
-  melhorCompetidor <-  group_by(comp_prices, PROD_ID, COMPETITOR) %>%
+  melhorCompetidor <- group_by(comp_prices, PROD_ID, COMPETITOR) %>%
     summarise(min(COMPETITOR_PRICE)) %>%
-    filter(PROD_ID== prod_id)
+    filter(PROD_ID == prod_id)
   
   colnames(melhorCompetidor) <- c("PROD_ID", "COMPETITOR", "COMPETITOR_PRICE")
   min_price <- min(melhorCompetidor$COMPETITOR_PRICE)
@@ -13,15 +13,17 @@ toPlot_preco_competidor <- function(comp_prices, prod_id){
   
   ggplot(melhorCompetidor, aes(x=reorder(COMPETITOR, -COMPETITOR), y=COMPETITOR_PRICE)) + 
     geom_bar(stat="identity") + 
-    labs(y='Preço', x='Competidor', title = paste0("Menore Preços por Competidor Para o Produto", " ", prod_id)) +
+    labs(y='', x='', title = paste0("Produto", " ", prod_id)) +
     theme_classic() + 
     theme(panel.background=element_blank()) + 
-    geom_bar(data = filter(melhorCompetidor, COMPETITOR_PRICE == max_price), stat="identity", colour="red", fill="red") + 
-    geom_bar(data = filter(melhorCompetidor, COMPETITOR_PRICE == min_price), stat="identity", colour="blue", fill="blue") 
+    geom_bar(data = filter(melhorCompetidor, COMPETITOR_PRICE == max_price), 
+             stat="identity", colour="red", fill="red") + 
+    geom_bar(data = filter(melhorCompetidor, COMPETITOR_PRICE == min_price), 
+             stat="identity", colour="blue", fill="blue") 
 }
 
 # DataFrame com a quantidade de vezes que um competidor teve o menor/maior preço
-toPlot_preco_competidor <- function(comp_prices){
+toPlot_preco_competidor_df <- function(comp_prices){
   produtos_id <- unique(comp_prices$PROD_ID)
   
   df_melhor_preco <- data.frame()
@@ -68,7 +70,6 @@ col_timestamp_comp <- function(comp_prices){
   comp_prices
 } 
 
-
 # Função que cria um data frame com todos os dias e produtos possíveis
 complet_df <- function(sales){
   df <- data.frame()
@@ -86,5 +87,6 @@ qty_dia_anterior <- function(sales){
   colnames(aux) <- "qty_anterior"
   sales <- cbind(sales, aux)
 }
+
 
 

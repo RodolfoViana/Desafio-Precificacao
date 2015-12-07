@@ -8,23 +8,23 @@ output: html_document
 Pré-Processamento dos Dados
 
 ```{r}
+# Carregando as bibliotecas necessarias 
 library(tidyr)
 library(dplyr)
 library(ggplot2)
 
-source("R/precificacao-lib.R")
-```
+source("~/Projetos/Desafio-Precificacao/Scripts/R/precificacao-lib.R")
 
-Pre-Processamento do csv sales
-
-```{r}
+# Pre-Processamento do csv sales
 sales <- read.csv("~/Projetos/Desafio-Precificacao/Scripts/Dados/sales.csv")
 sales <- col_timestamp(sales)
 
+# Agrupa por Prod_Id e Dia
 # Por causa dos outliers resolvi escolher a mediana em vez da media 
 sales_by_dia <- group_by(sales, PROD_ID, dia) %>%
   summarise(qty = n(), preco = median(PRICE))
 
+# Cria coluna Data e Semana
 sales_by_dia$date <- as.Date(as.character(sales_by_dia$dia), format = "%j")
 sales_by_dia$semana <- as.numeric(format(sales_by_dia$date, format = '%W'))
   
@@ -32,12 +32,12 @@ sales_by_dia$semana <- as.numeric(format(sales_by_dia$date, format = '%W'))
 sales_by_semana <- group_by(sales, PROD_ID, semana) %>%
   summarise(qty_semana = n(), media_preco_semana = mean(PRICE))
 
+# Joint table sales semana + sales dia
 sales_by_semana <- right_join(sales_by_semana, sales_by_dia, by = c("PROD_ID", "semana"))
 
 # Adiciona a quantidade de vendas do produto do dia anterior
 new_sales <- qty_dia_anterior(sales_by_dia)
 new_sales <- cbind(sales_by_semana, qty_anterior = new_sales$qty_anterior)
-
 ```
 
 Pre-Processamento do csv comp_prices
@@ -63,7 +63,7 @@ new_sales$semana <- NULL
 sales_by_dia$semana <- NULL
 ```
 
-Antes de criar o modelo é importante dividir o arquivo original em treino e teste (75% treinamento, 25% teste), para assim verificar o F-measure e saber se um modelo criado é melhor do que o modelo anterior.
+Antes de criar o modelo é importante dividir o arquivo original em treino e teste (75% treinamento, 25% teste), para assim verificar como funcionaria o modelo em um mundo real.
 
 
 ```{r}
@@ -77,8 +77,8 @@ prod_qty <- prod_qty[order(runif(nrow(prod_qty))), ]
 treino <- prod_qty[1:round(0.75*nrow(prod_qty)), ]
 test <- prod_qty[round(0.75*nrow(prod_qty)):nrow(prod_qty), ]
 
-write.csv(treino, "Dados/prod_qty_treino.csv", row.names = FALSE)
-write.csv(test, "Dados/prod_qty_test.csv", row.names = FALSE)
+write.csv(treino, file = "Dados/prod_qty_treino.csv", row.names = FALSE)
+write.csv(test, file = "Dados/prod_qty_test.csv", row.names = FALSE)
 ```
 
 ```{r}
@@ -91,6 +91,6 @@ prod_qty_new <- prod_qty_new[order(runif(nrow(prod_qty_new))), ]
 treino <- prod_qty_new[1:round(0.75*nrow(prod_qty_new)), ]
 test <- prod_qty_new[round(0.75*nrow(prod_qty_new)):nrow(prod_qty_new), ]
 
-write.csv(treino, "Dados/prod_qty_treino_novas_variaveis.csv", row.names = FALSE)
-write.csv(test, "Dados/prod_qty_test_novas_variaveis.csv", row.names = FALSE)
+write.csv(treino,  file = "Dados/prod_qty_treino_novas_variaveis.csv", row.names = FALSE)
+write.csv(test,  file = "Dados/prod_qty_test_novas_variaveis.csv", row.names = FALSE)
 ```
