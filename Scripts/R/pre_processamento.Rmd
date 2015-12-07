@@ -77,6 +77,8 @@ prod_qty <- prod_qty[order(runif(nrow(prod_qty))), ]
 treino <- prod_qty[1:round(0.75*nrow(prod_qty)), ]
 test <- prod_qty[round(0.75*nrow(prod_qty)):nrow(prod_qty), ]
 
+colnames(prod_qty)
+
 write.csv(treino, file = "Dados/prod_qty_treino.csv", row.names = FALSE)
 write.csv(test, file = "Dados/prod_qty_test.csv", row.names = FALSE)
 ```
