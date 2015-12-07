@@ -1,0 +1,138 @@
+
+---
+title: "Análise Descritiva Sales"
+author: "Rodolfo Viana"
+date: "04-12-2015"
+output: html_document
+---
+ 
+O problema a seguir trata do desafio de precificação, onde se buscar meios para otimizar a relação demanda e preço. Os dados utilizados são uma pequena amostra de um comércio eletrônico, onde temos basicamente dois arquivos “sales.csv” e “comp_prices.csv com 351.091 e 50.114 linhas, respectivamente.
+ 
+O arquivo sales.csv contém informações transacionais, onde cada linha representa uma venda. Possui as colunas:
+ 
+* PROD_ID: ID de produto. Com os dados para nove produtos, P1 a P9
+* DATE_ORDER: Data da venda, no formato YYYY-MM-DD
+* QTY_ORDER: Quantidade vendida
+* PRICE: Preço da venda
+ 
+```{r, warning=FALSE, message=FALSE}
+# Carregando as bibliotecas necessárias
+library(dplyr)
+library(ggplot2)
+ 
+source("~/Projetos/Desafio-Precificacao/Scripts/R/precificacao-lib.R")
+ 
+# Carregando os dados
+sales <- read.csv("~/Projetos/Desafio-Precificacao/Scripts/Dados/sales.csv")
+```
+ 
+Vamos primeiro analisar a quantidade de produtos vendidos.
+ 
+```{r, warning=FALSE, message=FALSE, fig.align='center'}
+# Mostra lita de produtos vendidos
+venda_produto <- as.data.frame(table(sales$PROD_ID))
+ 
+# % de cada produto
+venda_produto$percentual <- (venda_produto$Freq / sum(venda_produto$Freq))*100
+ 
+ggplot(venda_produto, aes(x=reorder(Var1, -percentual), y=percentual, fill = percentual)) +
+ geom_bar(stat="identity") +
+ labs(y='', x='Produtos', title = "Produtos mais comprado") +
+ scale_fill_continuous(name="Compras em %") +
+ theme_classic() +
+ scale_y_continuous(limits=c(0, 60)) +
+ theme(panel.background=element_blank())
+```
+ 
+É possível notar que o produto P7 foi o produto mais comprado, com 55% das compras. O segundo colocado é o P2, que não chega nem a 20% das compras.
+ 
+Podemos observar como é a distribuição das compras ao longo do ano.
+ 
+```{r,  warning=FALSE, message=FALSE, fig.align='center'}
+# Criando novas colunas de datas (dia/mês/ano)
+sales <- col_timestamp(sales)
+ 
+# Lista das compras por meses do ano
+mes_venda_produto <- as.data.frame(table(sales$mes))
+ 
+ggplot(mes_venda_produto, aes(x=reorder(Var1, -Var1), y=Freq)) +
+ geom_bar(stat="identity") +
+ labs(y='Compras', x='Meses', title = "Compras por Mês") +
+ theme_classic() +
+ theme(panel.background=element_blank())
+```
+ 
+O mês com maior volume de compras é o mês de Setembro (9). Interessante notar que o mês de Maio (5) ficou em segundo lugar, sendo esse o mês do dia das mães.
+ 
+É interessante investigar também em qual dia da semana que acontece um maior volume de compras.
+ 
+```{r,  warning=FALSE, message=FALSE, fig.align='center'}
+dia_semana_venda_produto <- as.data.frame(table(sales$dia_da_semana))
+ 
+ggplot(dia_semana_venda_produto, aes(x=reorder(Var1, -Freq), y=Freq)) +
+ geom_bar(stat="identity") +
+ labs(y='Compras', x='Dias da Semana', title = "Compras por Dia da Semana") +
+ theme_classic() +
+ theme(panel.background=element_blank())
+```
+ 
+Para essa amostra de dados, o dia que acontece o maior volume de compras é a quarta-feira.
+ 
+Podemos verificar também se o volume de compras ao longo dos dias é uniforme ou não.
+ 
+```{r,  warning=FALSE, message=FALSE, fig.align='center'}
+dia_venda_produto <- as.data.frame(table(sales$dia))
+mean_compras_dia <- mean(dia_venda_produto$Freq)
+ 
+ggplot(dia_venda_produto, aes(x=reorder(Var1, -Var1), y=Freq)) +
+ geom_bar(stat="identity") +
+ labs(y='Compras', x='Dias', title = "Compras por Dia") +
+ theme_classic() +
+ theme(panel.background=element_blank(), axis.text.x = element_blank()) +
+ geom_abline(intercept=mean_compras_dia,slope= 0,colour="blue")
+```
+ 
+A linha azul representa a média total de compras. Podemos observar que alguns dias superam e muito a média de compras. Os dias 19 e 20 Agosto foram os dias em que se teve o maior volume de compras
+ 
+Analisamos também a quantidade vendida.
+ 
+```{r,  warning=FALSE, message=FALSE, fig.align='center'}
+qty_venda_produto <- as.data.frame(table(sales$QTY_ORDER))
+qty_venda_produto$porcentagem <- (qty_venda_produto$Freq / sum(qty_venda_produto$Freq))*100
+ 
+ggplot(qty_venda_produto, aes(x=reorder(Var1, -porcentagem), y=porcentagem)) +
+ geom_bar(stat="identity") +
+ labs(y='Compras %', x='Quantidade Vendida', title = "Quantidade Vendida") +
+ theme_classic() +
+ theme(panel.background=element_blank())
+```
+ 
+Em 95% das compras apenas 1 produto foi comprado.
+ 
+```{r,  warning=FALSE, message=FALSE, fig.align='center'}
+qty_venda_produto <- filter(qty_venda_produto, porcentagem < 90)
+ 
+ggplot(qty_venda_produto, aes(x=reorder(Var1, -porcentagem), y=porcentagem)) +
+ geom_bar(stat="identity") +
+ labs(y='Compras %', x='Quantidade Vendida', title = "Quantidade Vendida (sem o 1)") +
+ theme_classic() +
+ theme(panel.background=element_blank())
+```
+ 
+2 produtos foram comprados em menos de 4% das compras. Mostrando que o padrão de compra desse comércio eletrônico é majoritariamente de 1 produto.  
+ 
+Podemos também analisar a média de preços por produto.
+ 
+```{r, warning=FALSE, message=FALSE, fig.align='center'}
+# Média de compras por semana
+produto_sales <- group_by(sales, PROD_ID) %>%
+ summarise(media = mean(PRICE))
+ 
+ggplot(produto_sales, aes(x = reorder(PROD_ID, -media), y = media)) +
+ geom_bar(stat="identity") +
+ labs(y='Média de Preço', x='Produto', title = "Média de Preço por Produto") +
+ theme_classic() +
+ theme(panel.background=element_blank())
+```
+ 
+É possível observar que o produto P6 possui maior média de preço.  
